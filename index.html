@@ -394,7 +394,10 @@ const LS_THEME = 'pf_theme_v1';
 
   // === CONFIG REMOTA (API_URL placeholder) ===
   // Reemplaza 'REPLACE_WITH_API_URL' con la URL que te da Apps Script al implementar la WebApp
-  const API_URL = 'REPLACE_WITH_API_URL';
+  // Remote synchronization API endpoint generated from Google Apps Script deployment
+  // This URL allows the game to load and save questions and sessions across devices.
+  // Do not edit unless you redeploy the Apps Script and receive a new URL.
+  const API_URL = 'https://script.google.com/macros/s/AKfycbxhV1066cVvK7EUIj-Gfw11nPHiHQodIYsBHIIqs6bmCPX4eJyX5We9W_xq-zb1m1T/exec';
   const Remote = {
     enabled: !!API_URL && API_URL.startsWith('http'),
     qCache: null,
