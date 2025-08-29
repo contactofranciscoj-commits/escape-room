@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Escape Room Pentafon x DHL — Horror Quiz</title>
+<meta name="description" content="Escape Room de terror tematizado con Pentafon y colores DHL. Modo jugador y modo editor con dashboard, exportación y gestor de preguntas."/>
+<link rel="preload" as="image" href="https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Driskill_Hotel_Hallway_2011_%285498344394%29.jpg/1280px-Driskill_Hotel_Hallway_2011_%285498344394%29.jpg">
+<link rel="preload" as="image" href="https://upload.wikimedia.org/wikipedia/commons/thumb/2/22/Dark_corridor.jpg/1318px-Dark_corridor.jpg">
+<link rel="preload" as="image" href="https://upload.wikimedia.org/wikipedia/commons/f/f1/Horror-man.png">
+<link rel="preload" as="audio" href="https://www.free-stock-music.com/music/sound-effects-library/mp3/sound-effects-library-spooky-ambience.mp3">
+<link rel="preload" as="audio" href="https://upload.wikimedia.org/wikipedia/commons/d/d9/Wilhelm_Scream.ogg">
+<style>
+  :root{
+    /* DHL brand-ish defaults (editable en Apariencia) */
+    --color-primary:#FFCC00;    /* DHL Yellow */
+    --color-accent:#D40511;     /* DHL Red */
+    --color-bg:#0a0a0a;
+    --color-surface:#111;
+    --color-text:#f5f5f5;
+    --color-muted:#bbb;
+    --radius:16px;
+    --shadow:0 10px 30px rgba(0,0,0,.35);
+    --pentafon: #00A3E0; /* toque Pentafon (no dominante) */
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--color-bg);color:var(--color-text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Inter,Arial,sans-serif}
+  a{color:var(--color-primary);text-decoration:none}
+  img{max-width:100%}
+  button{cursor:pointer;border:0;border-radius:var(--radius);padding:.8rem 1.1rem;font-weight:700;letter-spacing:.3px}
+  .btn-primary{background:linear-gradient(180deg,var(--color-primary),#e5b700);color:#231f20}
+  .btn-accent{background:linear-gradient(180deg,var(--color-accent),#a3040d);color:white}
+  .btn-ghost{background:transparent;border:1px solid #333;color:var(--color-text)}
+  .btn-small{padding:.45rem .8rem;border-radius:10px;font-weight:600}
+  .tag{display:inline-block;padding:.2rem .5rem;border-radius:999px;background:#1c1c1c;border:1px solid #2a2a2a;color:var(--color-muted);font-size:.78rem}
+
+  header{
+    position:sticky;top:0;z-index:50;
+    background:linear-gradient(180deg,rgba(0,0,0,.85),rgba(0,0,0,.5));
+    backdrop-filter:saturate(120%) blur(6px);
+    border-bottom:1px solid rgba(255, 204, 0,.15);
+  }
+  .nav{
+    max-width:1200px;margin:0 auto;display:flex;align-items:center;gap:16px;padding:10px 16px;
+  }
+  .nav .spacer{flex:1}
+  .brand{display:flex;align-items:center;gap:12px}
+  .brand img{height:34px;filter:drop-shadow(0 4px 6px rgba(0,0,0,.3))}
+  .brand .badge{font-size:.7rem;color:#231f20;background:var(--color-primary);border-radius:6px;padding:.15rem .4rem;font-weight:800}
+  .nav button{border:1px solid rgba(255,255,255,.06)}
+
+  .container{max-width:1200px;margin:0 auto;padding:24px}
+  .hero{
+    position:relative;overflow:hidden;border-radius:24px;background:#0b0b0b;
+    box-shadow:var(--shadow);min-height:380px;display:grid;grid-template-columns:1.2fr .8fr;
+  }
+  .hero::before{
+    content:"";position:absolute;inset:0;z-index:0;
+    background:
+      linear-gradient(180deg,rgba(0,0,0,.35),rgba(0,0,0,.85)),
+      url('https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Driskill_Hotel_Hallway_2011_%285498344394%29.jpg/1280px-Driskill_Hotel_Hallway_2011_%285498344394%29.jpg') center/cover no-repeat;
+    filter:saturate(90%) contrast(105%);
+  }
+  .hero > div{position:relative;z-index:1;padding:28px}
+  .hero h1{margin:0 0 8px;font-size:2rem}
+  .hero p{margin:.4rem 0 .9rem;max-width:60ch;color:#eaeaea}
+  .ribbon{
+    display:inline-flex;align-items:center;gap:8px;padding:.35rem .6rem;border-radius:999px;
+    background:rgba(212,5,17,.1);border:1px solid rgba(212,5,17,.35);color:#ffd;
+    text-shadow:0 1px 2px rgba(0,0,0,.5)
+  }
+
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px;margin-top:16px}
+  .card{background:linear-gradient(180deg,#0e0e0e,#0a0a0a);border:1px solid #1b1b1b;border-radius:18px;padding:16px;box-shadow:var(--shadow)}
+  .card h3{margin:.2rem 0 .6rem}
+  .muted{color:#c9c9c9;font-size:.95rem}
+
+  /* Secciones SPA */
+  .section{display:none}
+  .section.active{display:block;animation:fade .25s ease-out}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+  /* Jugador */
+  .play-wrap{display:grid;grid-template-columns:1.1fr .9fr;gap:22px}
+  .panel{background:linear-gradient(180deg,#0e0e0e,#090909);border:1px solid #1a1a1a;border-radius:20px;padding:18px;box-shadow:var(--shadow)}
+  .question{font-size:1.2rem;margin:0 0 10px}
+  .options{display:grid;gap:10px}
+  .option{display:flex;align-items:center;gap:10px;padding:12px 14px;background:#0f0f0f;border:1px solid #222;border-radius:14px}
+  .option input{accent-color:var(--color-accent)}
+  .progress{height:10px;background:#1b1b1b;border-radius:999px;overflow:hidden;margin-top:10px}
+  .progress > div{height:100%;background:linear-gradient(90deg,var(--color-accent),var(--color-primary));width:0%}
+  .story{font-size:.98rem;color:#ddd;line-height:1.45}
+  .story b{color:var(--color-primary)}
+  .hud{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .hud .dot{width:10px;height:10px;background:var(--color-accent);border-radius:50%;box-shadow:0 0 0 3px rgba(212,5,17,.2)}
+
+  /* Editor */
+  .tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+  .tabs button{background:#0f0f0f;border:1px solid #1f1f1f;color:#ddd}
+  .tabs button.active{background:linear-gradient(180deg,#171717,#0f0f0f);border-color:#2c2c2c;box-shadow:inset 0 0 0 2px rgba(255,204,0,.12)}
+  .table{width:100%;border-collapse:collapse;border:1px solid #1c1c1c}
+  .table th,.table td{border-bottom:1px solid #1c1c1c;padding:10px;text-align:left;font-size:.95rem}
+  .table th{background:#101010}
+  .flex{display:flex;gap:10px;align-items:center}
+  .grid{display:grid;gap:12px}
+  .grid-2{grid-template-columns:1fr 1fr}
+  .grid-3{grid-template-columns:repeat(3,1fr)}
+  .right{justify-content:flex-end}
+  .danger{color:#ff6b6b}
+
+  /* Overlay de susto */
+  .jumpscare{
+    position:fixed;inset:0;display:none;place-items:center;z-index:9999;
+    background:rgba(0,0,0,.9);
+    animation: none;
+  }
+  .jumpscare.show{display:grid;animation: scare .85s ease-out}
+  .jumpscare img{max-height:88vh;filter:drop-shadow(0 20px 40px rgba(0,0,0,.7))}
+  @keyframes scare{
+    0%{transform:scale(1.25);opacity:0}
+    30%{transform:scale(1);opacity:1}
+    100%{transform:scale(1);opacity:1}
+  }
+
+  /* Pie/aviso licencias y marcador final */
+  .board{background:#0e0e0e;border:1px solid #1c1c1c;border-radius:20px;padding:16px}
+  .footnote{color:#aaa;font-size:.8rem}
+  .sep{height:1px;background:#1c1c1c;margin:12px 0}
+
+  /* Móvil */
+  @media (max-width:920px){
+    .hero{grid-template-columns:1fr}
+    .play-wrap{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="nav">
+    <div class="brand">
+      <!-- Logo oficial Pentafon (asset público del sitio) -->
+      <img alt="Pentafon" src="https://www.pentafon.com/hubfs/sitio-web/svg/main_logo.svg">
+      <span class="badge">x DHL</span>
+    </div>
+    <div class="spacer"></div>
+    <button class="btn-ghost" id="btnHome">Inicio</button>
+    <button class="btn-primary" id="btnJugador">Modo Jugador</button>
+    <button class="btn-accent" id="btnEditor">Modo Editor</button>
+    <button class="btn-ghost btn-small" id="btnMute" title="Ambiente tenebroso">🔊 Ambiente</button>
+  </div>
+</header>
+
+<main class="container">
+  <!-- INICIO -->
+  <section id="home" class="section active">
+    <div class="hero">
+      <div>
+        <span class="ribbon">Pentafon · Turno extra · La oficina vacía</span>
+        <h1>Escape Room de Terror — <span style="color:var(--color-primary)">Pentafon x DHL</span></h1>
+        <p>
+          Son las <b>23:47</b> en el call center. Queda una última carga de reportes. De pronto, las luces parpadean,
+          el discador se activa solo y por los pasillos se escucha un <i>susurro metálico</i>: “<b>¿Quién sigue en la operación?</b>”.
+          Tu única salida: contestar correctamente… y avanzar.
+        </p>
+        <div class="hud">
+          <span class="tag">Sin reintentos</span>
+          <span class="tag">Sonido ambiente</span>
+          <span class="tag">Estadísticas y exportación</span>
+          <span class="tag">Gestor de preguntas</span>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn-primary" id="ctaJugar">Jugar ahora</button>
+          <button class="btn-accent" id="ctaEditor">Entrar como editor</button>
+        </div>
+      </div>
+      <div class="cards">
+        <div class="card">
+          <h3>¿Cómo se juega?</h3>
+          <p class="muted">Ingresa tu nombre, responde. Si aciertas, la historia avanza. Si fallas, <b class="danger">el susto</b> suena y
+          pasas a la siguiente. Al final verás el tablero con puntuaciones.</p>
+        </div>
+        <div class="card">
+          <h3>Modo Editor</h3>
+          <p class="muted">Accede con contraseña para ver <b>dashboard</b>, revisar y <b>exportar respuestas</b>, y
+          <b>agregar/eliminar preguntas</b>. También puedes ajustar la <b>apariencia</b>.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- JUGADOR -->
+  <section id="jugador" class="section">
+    <div class="play-wrap">
+      <div class="panel">
+        <div style="display:flex;align-items:center;gap:10px;justify-content:space-between;flex-wrap:wrap">
+          <h2 style="margin:0">Modo Jugador</h2>
+          <div class="hud">
+            <span class="dot"></span><span class="muted">Sesión en curso</span>
+          </div>
+        </div>
+        <div id="playerSetup" class="grid" style="margin-top:10px">
+          <label class="grid">
+            <span>Tu nombre completo</span>
+            <input id="playerName" placeholder="Nombre y Apellidos" required
+                   style="background:#0e0e0e;border:1px solid #1f1f1f;color:#fff;border-radius:12px;padding:.8rem"/>
+          </label>
+          <button id="startGame" class="btn-primary">Comenzar</button>
+        </div>
+
+        <div id="quizArea" style="display:none">
+          <div class="progress" aria-label="Progreso"><div id="progressBar"></div></div>
+          <p class="question" id="qText"></p>
+          <div class="options" id="qOptions"></div>
+          <div class="sep"></div>
+          <div class="flex right">
+            <button id="btnResponder" class="btn-accent">Responder</button>
+          </div>
+        </div>
+
+        <div id="finishArea" style="display:none">
+          <h3>¡Completado!</h3>
+          <p id="scoreSummary" class="muted"></p>
+          <div class="sep"></div>
+          <div class="board">
+            <h4 style="margin:0 0 8px">Marcador de participantes</h4>
+            <table class="table" id="scoreTable">
+              <thead><tr><th>#</th><th>Jugador</th><th>Puntuación</th><th>Aciertos</th><th>Preguntas</th><th>Tiempo</th><th>Fecha</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div class="sep"></div>
+          <button class="btn-primary" id="btnReiniciar">Jugar de nuevo</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3 style="margin-top:0">Historia</h3>
+        <div id="storyBox" class="story">
+          <p>Estás solo en <b>Pentafon</b>. Un correo aparece sin remitente: “<b>Responde para salir</b>”. Al fondo,
+          un pasillo con cuadros amarillos de <b>DHL</b> se ilumina intermitente…</p>
+        </div>
+        <div class="sep"></div>
+        <div class="muted" style="font-size:.9rem">
+          <p><b>Reglas</b>: 1) Sin reintentos. 2) Si fallas, verás una imagen de terror y escucharás un grito.
+          3) Si aciertas, la historia avanza. 4) ¡No huyas del teclado! ⏱️</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- EDITOR (login + paneles) -->
+  <section id="editor" class="section">
+    <div id="editorGate" class="panel">
+      <h2 style="margin-top:0">Acceso de Editor</h2>
+      <div class="grid grid-3">
+        <label class="grid">
+          <span>Usuario</span>
+          <input id="edUser" placeholder="Correo o alias" style="background:#0e0e0e;border:1px solid #1f1f1f;color:#fff;border-radius:12px;padding:.8rem"/>
+        </label>
+        <label class="grid">
+          <span>Contraseña</span>
+          <input id="edPass" type="password" autocomplete="current-password" placeholder="********"
+                 style="background:#0e0e0e;border:1px solid #1f1f1f;color:#fff;border-radius:12px;padding:.8rem"/>
+        </label>
+        <div class="grid" style="align-items:end">
+          <button id="btnLogin" class="btn-accent">Entrar</button>
+        </div>
+      </div>
+      <p id="loginErr" class="danger" style="display:none;margin-top:8px">Acceso denegado</p>
+    </div>
+
+    <div id="editorPanel" style="display:none">
+      <div class="panel" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+        <div class="flex" style="gap:12px;align-items:center">
+          <h2 style="margin:0">Panel del Editor</h2>
+          <span class="tag">Solo editor</span>
+        </div>
+        <div class="flex">
+          <button class="btn-ghost btn-small" id="btnLogout">Cerrar sesión</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="tabs">
+          <button class="tabbtn active" data-tab="tabDashboard">Dashboard</button>
+          <button class="tabbtn" data-tab="tabRespuestas">Respuestas</button>
+          <button class="tabbtn" data-tab="tabPreguntas">Preguntas</button>
+          <button class="tabbtn" data-tab="tabApariencia">Apariencia</button>
+        </div>
+
+        <!-- DASHBOARD -->
+        <div id="tabDashboard" class="tabsec">
+          <div class="grid">
+            <div class="board">
+              <h3 style="margin:0 0 8px">Resumen por jugador</h3>
+              <table class="table" id="tblPlayers">
+                <thead>
+                <tr><th>Jugador</th><th>Sesiones</th><th>Mejor %</th><th>Último %</th><th>Aciertos</th><th>Intentos</th><th>Prom. seg/preg</th></tr>
+                </thead><tbody></tbody>
+              </table>
+            </div>
+            <div class="board">
+              <h3 style="margin:0 0 8px">Sesiones registradas</h3>
+              <table class="table" id="tblSessions">
+                <thead>
+                <tr><th>Fecha</th><th>Jugador</th><th>%</th><th>Aciertos</th><th>Preguntas</th><th>Tiempo</th></tr>
+                </thead><tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- RESPUESTAS -->
+        <div id="tabRespuestas" class="tabsec" style="display:none">
+          <div class="flex right" style="gap:10px;margin-bottom:8px">
+            <button class="btn-ghost btn-small" id="btnExportCSV">Exportar CSV</button>
+            <button class="btn-ghost btn-small danger" id="btnResetAll">Restablecer TODAS las respuestas</button>
+          </div>
+          <div class="board">
+            <table class="table" id="tblAnswers">
+              <thead>
+              <tr><th>Fecha</th><th>Jugador</th><th>#</th><th>Pregunta</th><th>Selección</th><th>Correcta</th><th>¿Acertó?</th><th>Tiempo (s)</th></tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- PREGUNTAS -->
+        <div id="tabPreguntas" class="tabsec" style="display:none">
+          <div class="grid">
+            <div class="board">
+              <h3 style="margin:0 0 8px">Preguntas actuales</h3>
+              <div id="qList" class="grid"></div>
+            </div>
+            <div class="board">
+              <h3 style="margin:0 0 8px">Agregar pregunta</h3>
+              <div class="grid">
+                <label class="grid"><span>Texto de la pregunta</span>
+                  <textarea id="newQText" rows="2" placeholder="Escribe la pregunta…" style="background:#0e0e0e;border:1px solid #1f1f1f;color:#fff;border-radius:12px;padding:.8rem"></textarea>
+                </label>
+                <div id="newQOptions" class="grid">
+                  <!-- Se inyectan campos de opción -->
+                </div>
+                <div class="flex" style="gap:10px;flex-wrap:wrap">
+                  <button id="btnAddOption" class="btn-ghost btn-small">+ Opción</button>
+                  <span class="muted">Marca la opción correcta con el selector.</span>
+                </div>
+                <div><button id="btnSaveQuestion" class="btn-primary">Guardar pregunta</button></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- APARIENCIA -->
+        <div id="tabApariencia" class="tabsec" style="display:none">
+          <div class="grid grid-3">
+            <label class="grid"><span>Primario (DHL Yellow)</span><input type="color" id="cPrimary" value="#FFCC00"></label>
+            <label class="grid"><span>Acento (DHL Red)</span><input type="color" id="cAccent" value="#D40511"></label>
+            <label class="grid"><span>Fondo</span><input type="color" id="cBg" value="#0a0a0a"></label>
+          </div>
+          <div class="sep"></div>
+          <button class="btn-primary" id="btnSaveTheme">Guardar apariencia</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Overlay susto -->
+  <div class="jumpscare" id="jumpscare" aria-hidden="true">
+    <img alt="Horror face" src="https://upload.wikimedia.org/wikipedia/commons/f/f1/Horror-man.png">
+  </div>
+
+  <!-- Audio ambiente + grito -->
+  <audio id="bgm" loop>
+    <source src="https://www.free-stock-music.com/music/sound-effects-library/mp3/sound-effects-library-spooky-ambience.mp3" type="audio/mpeg">
+  </audio>
+  <audio id="scream">
+    <source src="https://upload.wikimedia.org/wikipedia/commons/d/d9/Wilhelm_Scream.ogg" type="audio/ogg">
+  </audio>
+</main>
+
+<footer class="container footnote" style="opacity:.9">
+  <div class="sep"></div>
+  <p>Hecho con 💀 para Pentafon (colores y vibe DHL). Guarda este archivo como <b>index.html</b> y ábrelo. Para GitHub Pages: crea un repo, sube este archivo y habilita Pages.</p>
+  <p>Imágenes y sonidos: ver notas de licencia en el propio código y al final de esta página.</p>
+</footer>
+
+<script>
+/*** ================== UTILIDAD / STORAGE ================== ***/
+const LS_Q = 'pf_questions_v1';
+const LS_SESS = 'pf_sessions_v1';
+const LS_THEME = 'pf_theme_v1';
+
+const $ = sel => document.querySelector(sel);
+const $$ = sel => Array.from(document.querySelectorAll(sel));
+
+const fmtDate = d => new Date(d).toLocaleString();
+const pad = n => n.toString().padStart(2,'0');
+const msToS = ms => Math.round(ms/1000);
+const sum = arr => arr.reduce((a,b)=>a+b,0);
+
+function loadTheme(){
+  const t = JSON.parse(localStorage.getItem(LS_THEME) || 'null');
+  if(!t) return;
+  document.documentElement.style.setProperty('--color-primary', t.primary);
+  document.documentElement.style.setProperty('--color-accent', t.accent);
+  document.documentElement.style.setProperty('--color-bg', t.bg);
+  // Colocar en pickers si existen
+  const p = $('#cPrimary'), a = $('#cAccent'), b = $('#cBg');
+  if(p) p.value = t.primary; if(a) a.value = t.accent; if(b) b.value = t.bg;
+}
+
+function saveTheme(){
+  const t = {
+    primary: $('#cPrimary').value,
+    accent: $('#cAccent').value,
+    bg: $('#cBg').value
+  };
+  localStorage.setItem(LS_THEME, JSON.stringify(t));
+  loadTheme();
+}
+
+function defaultQuestions(){
+  return [
+    {
+      id: crypto.randomUUID(),
+      text: "¿Qué archivo te brinda el detalle del cobro de una factura?",
+      options: ["Acre","Factura","Guía"],
+      correctIndex: 0
+    },
+    {
+      id: crypto.randomUUID(),
+      text: "¿Qué archivo debes consultar para localizar el código verificador?",
+      options: ["Asignación","Acre","Cálculo verificador"],
+      correctIndex: 2
+    },
+    {
+      id: crypto.randomUUID(),
+      text: "Es el costo que tiene la refacturación en el año 2025",
+      options: ["406.58 +IVA","406.58 IVA incluido","408.58 IVA incluido"],
+      correctIndex: 1
+    },
+    {
+      id: crypto.randomUUID(),
+      text: "¿En qué estatus se puede reactivar la cuenta con DHL?",
+      options: ["Aclaración","Pagada","Retirada"],
+      correctIndex: 1
+    }
+  ];
+}
+
+function loadQuestions(){
+  let qs = JSON.parse(localStorage.getItem(LS_Q) || 'null');
+  if(!qs || !Array.isArray(qs) || qs.length===0){
+    qs = defaultQuestions();
+    localStorage.setItem(LS_Q, JSON.stringify(qs));
+  }
+  return qs;
+}
+
+function saveQuestions(qs){
+  localStorage.setItem(LS_Q, JSON.stringify(qs));
+}
+
+function loadSessions(){
+  return JSON.parse(localStorage.getItem(LS_SESS) || '[]');
+}
+function saveSessions(s){ localStorage.setItem(LS_SESS, JSON.stringify(s)); }
+
+/*** ================== SPA / NAVEGACIÓN ================== ***/
+function showSection(id){
+  $$('.section').forEach(s=>s.classList.remove('active'));
+  $('#'+id).classList.add('active');
+}
+$('#btnHome').onclick = ()=> showSection('home');
+$('#btnJugador').onclick = ()=> showSection('jugador');
+$('#btnEditor').onclick = ()=> { showSection('editor'); $('#edPass').focus(); };
+$('#ctaJugar').onclick = ()=> { showSection('jugador'); $('#playerName').focus(); };
+$('#ctaEditor').onclick = ()=> { showSection('editor'); $('#edPass').focus(); };
+
+/*** ================== SONIDO ================== ***/
+const bgm = $('#bgm'), scream = $('#scream'), btnMute = $('#btnMute');
+let bgmEnabled = false;
+btnMute.onclick = async ()=>{
+  try{
+    if(!bgmEnabled){ await bgm.play(); bgmEnabled = true; btnMute.textContent = '🔇 Silencio'; }
+    else{ bgm.pause(); bgmEnabled = false; btnMute.textContent = '🔊 Ambiente'; }
+  }catch(e){ console.warn('Autoplay bloqueado por el navegador'); }
+};
+
+/*** ================== HISTORIA ================== ***/
+const storySnippets = [
+  "Un <b>pasillo amarillo</b> se ilumina. Las extensiones parpadean… avanzas un tramo.",
+  "El discador marca solo. Una voz metálica susurra: “<b>Cliente localizable…</b>”. Das otro paso.",
+  "De una estación vacía cae un <b>headset</b>. El aire está helado. Tu sombra se estira.",
+  "Una puerta con el logo de <b>Pentafon</b> se entreabre. Sientes que la salida está cerca."
+];
+let storyIndex = 0;
+function advanceStory(){
+  if(storyIndex < storySnippets.length){
+    $('#storyBox').insertAdjacentHTML('beforeend', `<p>${storySnippets[storyIndex++]}</p>`);
+  } else {
+    $('#storyBox').insertAdjacentHTML('beforeend', `<p><b>La salida está frente a ti.</b> Solo una luz roja te separa de la puerta.</p>`);
+  }
+}
+
+/*** ================== JUGADOR / QUIZ ================== ***/
+let QUESTIONS = loadQuestions();
+let currentQ = 0;
+let session = null;
+let qStartTime = null;
+
+function resetPlayerUI(){
+  $('#playerSetup').style.display = '';
+  $('#quizArea').style.display = 'none';
+  $('#finishArea').style.display = 'none';
+  $('#storyBox').innerHTML = `<p>Estás solo en <b>Pentafon</b>. Un correo aparece sin remitente: “<b>Responde para salir</b>”. Al fondo, un pasillo con cuadros amarillos de <b>DHL</b> se ilumina intermitente…</p>`;
+  storyIndex = 0;
+  currentQ = 0;
+  QUESTIONS = loadQuestions();
+  updateBackground(0);
+  updateProgress(0);
+}
+function startGame(){
+  const name = ($('#playerName').value || '').trim();
+  if(name.length<5){ alert('Escribe tu nombre completo.'); return; }
+  session = {
+    id: crypto.randomUUID(),
+    player: name,
+    startedAt: Date.now(),
+    answers: [] // por pregunta: {qId, qText, selectedIndex, correctIndex, isCorrect, timeMs}
+  };
+  $('#playerSetup').style.display = 'none';
+  $('#quizArea').style.display = '';
+  renderQuestion();
+  try{ if(!bgmEnabled){ bgm.play(); bgmEnabled=true; btnMute.textContent = '🔇 Silencio'; } }catch(e){}
+}
+function renderQuestion(){
+  const q = QUESTIONS[currentQ];
+  if(!q){ return finishGame(); }
+  $('#qText').textContent = (currentQ+1)+'. '+q.text;
+  const box = $('#qOptions'); box.innerHTML = '';
+  q.options.forEach((op,idx)=>{
+    const id='op'+idx;
+    box.insertAdjacentHTML('beforeend', `
+      <label class="option"><input type="radio" name="opt" value="${idx}" id="${id}">
+        <span>${idx+1}. ${op}</span></label>
+    `);
+  });
+  qStartTime = Date.now();
+  updateBackground(currentQ);
+}
+function updateProgress(i){
+  const pct = Math.round( (i/Math.max(QUESTIONS.length,1))*100 );
+  $('#progressBar').style.width = pct+'%';
+}
+function updateBackground(step){
+  const hero = $('.hero::before'); // not accessible
+  // cambiamos body background con imágenes terroríficas
+  const imgA = "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Driskill_Hotel_Hallway_2011_%285498344394%29.jpg/1280px-Driskill_Hotel_Hallway_2011_%285498344394%29.jpg";
+  const imgB = "https://upload.wikimedia.org/wikipedia/commons/thumb/2/22/Dark_corridor.jpg/1318px-Dark_corridor.jpg";
+  const target = document.body;
+  target.style.backgroundImage = `url(${(step%2===0)?imgA:imgB})`;
+  target.style.backgroundSize = 'cover';
+  target.style.backgroundAttachment = 'fixed';
+  target.style.backgroundPosition = 'center';
+  target.style.backgroundBlendMode = 'multiply';
+}
+
+function submitAnswer(){
+  const sel = document.querySelector('input[name="opt"]:checked');
+  if(!sel){ alert('Selecciona una opción.'); return; }
+  const q = QUESTIONS[currentQ];
+  const selectedIndex = parseInt(sel.value,10);
+  const isCorrect = selectedIndex === q.correctIndex;
+  const timeMs = Date.now() - qStartTime;
+  session.answers.push({
+    qId: q.id, qText: q.text, selectedIndex, correctIndex: q.correctIndex,
+    isCorrect, timeMs
+  });
+
+  // Feedback: si incorrecto, jumpscare + grito; siempre avanzamos.
+  if(!isCorrect){
+    showJumpscare();
+  }else{
+    advanceStory();
+  }
+
+  currentQ++;
+  updateProgress(currentQ);
+  if(currentQ >= QUESTIONS.length){
+    setTimeout(finishGame, isCorrect ? 250 : 1000);
+  }else{
+    setTimeout(renderQuestion, isCorrect ? 200 : 1000);
+  }
+}
+function showJumpscare(){
+  const j = $('#jumpscare');
+  j.classList.add('show');
+  try{ scream.currentTime = 0; scream.play(); }catch(e){}
+  setTimeout(()=> j.classList.remove('show'), 850);
+}
+function finishGame(){
+  $('#quizArea').style.display = 'none';
+  const total = QUESTIONS.length;
+  const hits = session.answers.filter(a=>a.isCorrect).length;
+  const timeTotal = sum(session.answers.map(a=>a.timeMs));
+  const score = Math.round((hits/Math.max(total,1))*100);
+  session.completedAt = Date.now();
+  session.summary = { hits, total, timeMs: timeTotal, score };
+  // Guardar
+  const all = loadSessions(); all.push(session); saveSessions(all);
+  // UI
+  $('#finishArea').style.display = '';
+  $('#scoreSummary').textContent = `Jugador: ${session.player} · Aciertos: ${hits}/${total} · Puntuación: ${score}% · Tiempo total: ${msToS(timeTotal)}s`;
+  renderScoreboard();
+}
+
+/*** ================== SCOREBOARD ================== ***/
+function renderScoreboard(){
+  const tbody = $('#scoreTable tbody'); tbody.innerHTML='';
+  const rows = loadSessions().map(s=>({
+    player:s.player,
+    score:s.summary.score,
+    hits:s.summary.hits,
+    total:s.summary.total,
+    time:s.summary.timeMs,
+    when:s.completedAt || s.startedAt
+  })).sort((a,b)=> b.score - a.score || a.time - b.time);
+  rows.forEach((r,idx)=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${idx+1}</td><td>${r.player}</td><td>${r.score}%</td>
+      <td>${r.hits}</td><td>${r.total}</td><td>${msToS(r.time)}s</td><td>${fmtDate(r.when)}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+/*** ================== EDITOR ================== ***/
+let editorLogged = false;
+const SECRET = "PentafonDHL2025"; // no visible en UI
+
+$('#btnLogin').onclick = ()=>{
+  const pass = ($('#edPass').value||'').trim();
+  if(pass===SECRET){
+    editorLogged = true;
+    $('#editorGate').style.display = 'none';
+    $('#editorPanel').style.display = '';
+    refreshAllEditor();
+  }else{
+    $('#loginErr').style.display = '';
+    setTimeout(()=> $('#loginErr').style.display='none', 1800);
+  }
+};
+$('#btnLogout').onclick = ()=>{
+  editorLogged = false;
+  $('#editorGate').style.display = '';
+  $('#editorPanel').style.display = 'none';
+  $('#edPass').value = '';
+};
+
+function switchTab(id){
+  $$('.tabbtn').forEach(b=>b.classList.remove('active'));
+  $$('.tabsec').forEach(s=>s.style.display='none');
+  document.querySelector(`[data-tab="${id}"]`).classList.add('active');
+  $('#'+id).style.display='';
+}
+$$('.tabbtn').forEach(b=> b.onclick = ()=> switchTab(b.dataset.tab));
+
+function refreshAllEditor(){
+  renderPlayersTable();
+  renderSessionsTable();
+  renderAnswersTable();
+  renderQuestionsList();
+  initNewQuestionForm(true);
+}
+
+function renderPlayersTable(){
+  const sessions = loadSessions();
+  const byPlayer = new Map();
+  sessions.forEach(s=>{
+    if(!byPlayer.has(s.player)) byPlayer.set(s.player, []);
+    byPlayer.get(s.player).push(s);
+  });
+  const tbody = $('#tblPlayers tbody'); tbody.innerHTML='';
+  for(const [name,sess] of byPlayer.entries()){
+    const best = Math.max(...sess.map(x=>x.summary.score));
+    const last = sess[sess.length-1].summary.score;
+    const hits = sum(sess.map(x=>x.summary.hits));
+    const attempts = sum(sess.map(x=>x.summary.total)); // sin reintentos == total preguntas contestadas
+    const totalQs = sum(sess.map(x=>x.summary.total));
+    const avgSec = Math.round( sum(sess.map(x=>x.summary.timeMs)) / Math.max(totalQs,1) / 1000 );
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${name}</td><td>${sess.length}</td><td>${best}%</td><td>${last}%</td>
+      <td>${hits}</td><td>${attempts}</td><td>${avgSec}s</td>`;
+    tbody.appendChild(tr);
+  }
+}
+function renderSessionsTable(){
+  const sessions = loadSessions().slice().sort((a,b)=>(b.completedAt||0)-(a.completedAt||0));
+  const tbody = $('#tblSessions tbody'); tbody.innerHTML='';
+  sessions.forEach(s=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${fmtDate(s.completedAt||s.startedAt)}</td><td>${s.player}</td>
+      <td>${s.summary.score}%</td><td>${s.summary.hits}</td><td>${s.summary.total}</td><td>${msToS(s.summary.timeMs)}s</td>`;
+    tbody.appendChild(tr);
+  });
+}
+function renderAnswersTable(){
+  const sessions = loadSessions();
+  const rows = [];
+  sessions.forEach(s=>{
+    s.answers.forEach((a,idx)=>{
+      rows.push({
+        when: s.completedAt||s.startedAt,
+        player: s.player,
+        num: idx+1,
+        q: a.qText,
+        sel: (a.selectedIndex+1)+'. '+QUESTIONS.find(q=>q.id===a.qId)?.options[a.selectedIndex],
+        cor: (a.correctIndex+1)+'. '+QUESTIONS.find(q=>q.id===a.qId)?.options[a.correctIndex],
+        ok: a.isCorrect?'Sí':'No',
+        t: msToS(a.timeMs)
+      });
+    });
+  });
+  const tbody = $('#tblAnswers tbody'); tbody.innerHTML='';
+  rows.sort((a,b)=> a.when - b.when).forEach(r=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${fmtDate(r.when)}</td><td>${r.player}</td><td>${r.num}</td>
+      <td>${r.q}</td><td>${r.sel||'-'}</td><td>${r.cor||'-'}</td><td>${r.ok}</td><td>${r.t}s</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+$('#btnExportCSV').onclick = ()=>{
+  const sessions = loadSessions();
+  const lines = [
+    ['fecha','jugador','nro_pregunta','pregunta','seleccion','correcta','acerto','tiempo_seg'].join(',')
+  ];
+  sessions.forEach(s=>{
+    s.answers.forEach((a,i)=>{
+      const q = QUESTIONS.find(q=>q.id===a.qId);
+      const sel = (a.selectedIndex+1)+'. '+(q?.options[a.selectedIndex]||'');
+      const cor = (a.correctIndex+1)+'. '+(q?.options[a.correctIndex]||'');
+      lines.push([
+        new Date(s.completedAt||s.startedAt).toISOString(),
+        `"${s.player.replace(/"/g,'""')}"`,
+        i+1,
+        `"${(a.qText||'').replace(/"/g,'""')}"`,
+        `"${sel.replace(/"/g,'""')}"`,
+        `"${cor.replace(/"/g,'""')}"`,
+        a.isCorrect?'SI':'NO',
+        Math.round(a.timeMs/1000)
+      ].join(','));
+    });
+  });
+  const blob = new Blob([lines.join('\n')], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'respuestas_escape_room_pentafon.csv';
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 1000);
+};
+
+$('#btnResetAll').onclick = ()=>{
+  if(confirm('¿Seguro que quieres borrar TODAS las respuestas registradas?')){
+    saveSessions([]);
+    renderPlayersTable(); renderSessionsTable(); renderAnswersTable();
+    alert('Respuestas restablecidas.');
+  }
+};
+
+/*** ============ GESTOR DE PREGUNTAS (agregar/eliminar) ============ ***/
+function renderQuestionsList(){
+  const box = $('#qList'); box.innerHTML = '';
+  QUESTIONS = loadQuestions();
+  QUESTIONS.forEach((q,idx)=>{
+    const id = q.id;
+    const opts = q.options.map((o,i)=> `${i+1}. ${o}${i===q.correctIndex?' ✅':''}`).join('<br>');
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = `
+      <div class="flex" style="justify-content:space-between;align-items:flex-start">
+        <div style="max-width:800px">
+          <div class="tag">#${idx+1}</div>
+          <h4 style="margin:6px 0 8px">${q.text}</h4>
+          <div class="muted">${opts}</div>
+        </div>
+        <button class="btn-ghost btn-small danger" data-del="${id}" title="Eliminar">Eliminar</button>
+      </div>`;
+    box.appendChild(card);
+  });
+  // eliminar
+  $$('[data-del]').forEach(btn=>{
+    btn.onclick = ()=>{
+      const id = btn.getAttribute('data-del');
+      if(confirm('¿Eliminar esta pregunta?')){
+        const updated = QUESTIONS.filter(q=>q.id!==id);
+        saveQuestions(updated);
+        renderQuestionsList();
+      }
+    };
+  });
+}
+
+function initNewQuestionForm(reset=false){
+  const zone = $('#newQOptions');
+  if(reset) zone.innerHTML='';
+  // Siempre aseguramos 3 opciones mínimas
+  while(zone.children.length<3) addOptionField();
+}
+function addOptionField(text=''){
+  const zone = $('#newQOptions');
+  const idx = zone.children.length;
+  const wrap = document.createElement('div');
+  wrap.className = 'flex';
+  wrap.style.alignItems = 'center';
+  wrap.innerHTML = `
+    <input type="radio" name="newCorrect" value="${idx}" ${idx===0?'checked':''} title="Correcta (selección única)">
+    <input type="text" placeholder="Opción ${idx+1}" value="${text}"
+      style="flex:1;background:#0e0e0e;border:1px solid #1f1f1f;color:#fff;border-radius:10px;padding:.6rem">
+    <button class="btn-ghost btn-small" title="Quitar">✕</button>
+  `;
+  const removeBtn = wrap.querySelector('button');
+  removeBtn.onclick = ()=> { zone.removeChild(wrap); };
+  zone.appendChild(wrap);
+}
+$('#btnAddOption').onclick = ()=> addOptionField();
+
+$('#btnSaveQuestion').onclick = ()=>{
+  const text = ($('#newQText').value||'').trim();
+  if(text.length<8){ alert('Escribe la pregunta completa.'); return; }
+  const rows = Array.from($('#newQOptions').children);
+  const options = rows.map(r=> r.querySelector('input[type="text"]').value.trim()).filter(Boolean);
+  if(options.length<2){ alert('Agrega al menos dos opciones.'); return; }
+  const r = document.querySelector('input[name="newCorrect"]:checked');
+  let correctIndex = r ? parseInt(r.value,10) : 0;
+  if(correctIndex >= options.length) correctIndex = options.length-1;
+
+  const q = { id: crypto.randomUUID(), text, options, correctIndex };
+  const qs = loadQuestions(); qs.push(q); saveQuestions(qs);
+
+  // limpiar
+  $('#newQText').value = '';
+  $('#newQOptions').innerHTML='';
+  initNewQuestionForm(true);
+  renderQuestionsList();
+  alert('Pregunta agregada. Ya está disponible en el Modo Jugador.');
+};
+
+/*** ================== APARIENCIA ================== ***/
+$('#btnSaveTheme').onclick = ()=> { saveTheme(); alert('Apariencia guardada.'); };
+loadTheme();
+
+/*** ================== EVENTOS UI ================== ***/
+$('#startGame').onclick = startGame;
+$('#btnResponder').onclick = submitAnswer;
+$('#btnReiniciar').onclick = ()=>{ resetPlayerUI(); showSection('jugador'); };
+
+resetPlayerUI();
+
+/*** ================== LICENCIAS (nota visible) ================== ***/
+// Nota simple al pie (no bloquea)
+const foot = document.querySelector('footer .footnote');
+foot.insertAdjacentHTML('beforeend', `
+  <div class="sep"></div>
+  <div>
+    <small>
+      Logo de Pentafon cargado desde su sitio público. Fondos: pasillo Driskill (CC BY-SA 2.0) y Dark corridor (CC BY-SA 4.0).
+      Imagen de susto Horror-man (CC0). Sonido ambiente "Spooky Ambience" (CC0) y efecto de grito "Wilhelm Scream" (CC0).
+    </small>
+  </div>
+`);
+</script>
+</body>
+</html>
