@@ -392,6 +392,85 @@ const LS_Q = 'pf_questions_v1';
 const LS_SESS = 'pf_sessions_v1';
 const LS_THEME = 'pf_theme_v1';
 
+  // === CONFIG REMOTA (API_URL placeholder) ===
+  // Reemplaza 'REPLACE_WITH_API_URL' con la URL que te da Apps Script al implementar la WebApp
+  const API_URL = 'REPLACE_WITH_API_URL';
+  const Remote = {
+    enabled: !!API_URL && API_URL.startsWith('http'),
+    qCache: null,
+    sCache: null
+  };
+  // Helper para enviar POST sin desencadenar preflight CORS
+  function postForm(action, payload){
+    const body = new URLSearchParams();
+    body.append('action', action);
+    if(payload !== undefined) body.append('payload', JSON.stringify(payload));
+    return fetch(API_URL, { method: 'POST', body }).then(r=>r.json());
+  }
+  // Helper para GET de JSON con parámetros de cadena
+  function getJSON(params){
+    const url = API_URL + '?' + new URLSearchParams(params).toString();
+    return fetch(url).then(r=>r.json());
+  }
+  // Cargar preguntas desde el backend remoto
+  async function remoteFetchQuestions(){
+    if(!Remote.enabled) return null;
+    try{
+      const data = await getJSON({ action:'getQuestions' });
+      if(data?.ok && Array.isArray(data.questions) && data.questions.length){
+        localStorage.setItem(LS_Q, JSON.stringify(data.questions));
+        Remote.qCache = data.questions;
+        return data.questions;
+      }
+    }catch(e){}
+    return null;
+  }
+  // Guardar preguntas en el backend remoto
+  async function remoteSaveQuestions(qs){
+    if(!Remote.enabled) return;
+    try{
+      await postForm('saveQuestions', qs);
+    }catch(e){}
+  }
+  // Cargar sesiones (respuestas) desde el backend remoto y fusionar con local
+  async function remoteFetchSessions(){
+    if(!Remote.enabled) return null;
+    try{
+      const data = await getJSON({ action:'getSessions' });
+      if(data?.ok && Array.isArray(data.sessions)){
+        const local = JSON.parse(localStorage.getItem(LS_SESS) || '[]');
+        const byId = new Map(local.map(x=>[x.id, x]));
+        data.sessions.forEach(s=> byId.set(s.id, s));
+        const merged = Array.from(byId.values());
+        localStorage.setItem(LS_SESS, JSON.stringify(merged));
+        Remote.sCache = merged;
+        return merged;
+      }
+    }catch(e){}
+    return null;
+  }
+  // Añadir una sesión al backend remoto
+  async function remoteAddSession(s){
+    if(!Remote.enabled) return;
+    try{
+      await postForm('addSession', s);
+    }catch(e){}
+  }
+  // Borrar todas las sesiones en el backend remoto
+  async function remoteResetSessions(){
+    if(!Remote.enabled) return;
+    try{
+      await postForm('resetSessions', {});
+    }catch(e){}
+  }
+  // Sincronizar preguntas y sesiones al cargar la página
+  (async function(){
+    try{
+      await Promise.all([remoteFetchQuestions(), remoteFetchSessions()]);
+    }catch(e){}
+  })();
+
+
 const $ = sel => document.querySelector(sel);
 const $$ = sel => Array.from(document.querySelectorAll(sel));
 
@@ -611,6 +690,8 @@ function finishGame(){
   session.summary = { hits, total, timeMs: timeTotal, score };
   // Guardar
   const all = loadSessions(); all.push(session); saveSessions(all);
+  // Sube la sesión al backend remoto
+  if (Remote.enabled) remoteAddSession(session);
   // UI
   $('#finishArea').style.display = '';
   $('#scoreSummary').textContent = `Jugador: ${session.player} · Aciertos: ${hits}/${total} · Puntuación: ${score}% · Tiempo total: ${msToS(timeTotal)}s`;
@@ -672,6 +753,8 @@ function refreshAllEditor(){
   renderSessionsTable();
   renderAnswersTable();
   renderQuestionsList();
+        // Persistir cambios de preguntas en backend remoto
+        if (Remote.enabled) remoteSaveQuestions(updated);
   initNewQuestionForm(true);
 }
 
@@ -765,6 +848,8 @@ $('#btnExportCSV').onclick = ()=>{
 $('#btnResetAll').onclick = ()=>{
   if(confirm('¿Seguro que quieres borrar TODAS las respuestas registradas?')){
     saveSessions([]);
+    // También limpiar sesiones remotas si corresponde
+    if (Remote.enabled) remoteResetSessions();
     renderPlayersTable(); renderSessionsTable(); renderAnswersTable();
     alert('Respuestas restablecidas.');
   }
@@ -798,6 +883,8 @@ function renderQuestionsList(){
         const updated = QUESTIONS.filter(q=>q.id!==id);
         saveQuestions(updated);
         renderQuestionsList();
+        // Persistir cambios de preguntas en backend remoto
+        if (Remote.enabled) remoteSaveQuestions(updated);
       }
     };
   });
@@ -839,12 +926,16 @@ $('#btnSaveQuestion').onclick = ()=>{
 
   const q = { id: crypto.randomUUID(), text, options, correctIndex };
   const qs = loadQuestions(); qs.push(q); saveQuestions(qs);
+  // Persistir cambios de preguntas en backend remoto
+  if (Remote.enabled) remoteSaveQuestions(qs);
 
   // limpiar
   $('#newQText').value = '';
   $('#newQOptions').innerHTML='';
   initNewQuestionForm(true);
   renderQuestionsList();
+        // Persistir cambios de preguntas en backend remoto
+        if (Remote.enabled) remoteSaveQuestions(updated);
   alert('Pregunta agregada. Ya está disponible en el Modo Jugador.');
 };
 
