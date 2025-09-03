@@ -467,9 +467,16 @@ const LS_THEME = 'pf_theme_v1';
     }catch(e){}
   }
   // Sincronizar preguntas y sesiones al cargar la página
+  // Al iniciar, obtenemos preguntas y sesiones del backend remoto. Si hay preguntas
+  // remotas válidas, actualizamos la variable global QUESTIONS para que el
+  // jugador vea siempre la última versión sin tener que recargar manualmente.
   (async function(){
     try{
-      await Promise.all([remoteFetchQuestions(), remoteFetchSessions()]);
+      const [rq, rs] = await Promise.all([remoteFetchQuestions(), remoteFetchSessions()]);
+      // Si el backend devolvió preguntas válidas, reemplazamos la lista
+      if (Array.isArray(rq) && rq.length) {
+        QUESTIONS = rq;
+      }
     }catch(e){}
   })();
 
